@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Flappy Dupe</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Arial Black', sans-serif;
+    touch-action: none;
+  }
+  #gameWrapper {
+    position: relative;
+    width: 400px;
+    height: 600px;
+    max-width: 100vw;
+    max-height: 100vh;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 12px;
+    box-shadow: 0 0 40px rgba(255,200,0,0.3);
+  }
+  #overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+  }
+  #startScreen {
+    background: linear-gradient(160deg, #0f0c29, #302b63, #24243e);
+    color: white;
+    text-align: center;
+    padding: 30px;
+    border-radius: 12px;
+  }
+  #startScreen h1 {
+    font-size: 2.2em;
+    color: #FFD700;
+    text-shadow: 0 0 20px #FFD700, 2px 2px 0 #000;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  #startScreen p {
+    font-size: 1em;
+    color: #aaa;
+    margin-bottom: 20px;
+  }
+  #facePreview {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    border: 3px solid #FFD700;
+    object-fit: cover;
+    margin-bottom: 16px;
+    box-shadow: 0 0 20px #FFD70088;
+  }
+  #startBtn {
+    background: #FFD700;
+    color: #000;
+    border: none;
+    padding: 14px 40px;
+    font-size: 1.2em;
+    font-weight: 900;
+    border-radius: 50px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    margin-top: 10px;
+    box-shadow: 0 4px 15px rgba(255,215,0,0.5);
+    transition: transform 0.1s;
+  }
+  #startBtn:active { transform: scale(0.95); }
+  #tapHint {
+    font-size: 0.85em;
+    color: #888;
+    margin-top: 12px;
+  }
+
+  #gameOverScreen {
+    display: none;
+    background: linear-gradient(160deg, #1a0000, #3d0000, #1a0000);
+    color: white;
+    text-align: center;
+    padding: 30px;
+    border-radius: 12px;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  #gameOverScreen h1 {
+    font-size: 2.4em;
+    color: #FF4444;
+    text-shadow: 0 0 20px #FF0000, 2px 2px 0 #000;
+    margin-bottom: 5px;
+    animation: shake 0.4s ease;
+  }
+  #buffaloSound {
+    font-size: 2.5em;
+    margin: 10px 0;
+    animation: pulse 0.5s infinite alternate;
+  }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.15); } }
+  @keyframes shake {
+    0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}
+  }
+  #scoreBoard {
+    background: rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 14px 30px;
+    margin: 14px 0;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  #scoreBoard div { font-size: 1.1em; margin: 4px 0; color: #ddd; }
+  #scoreBoard span { color: #FFD700; font-size: 1.4em; }
+  #retryBtn {
+    background: #FF4444;
+    color: white;
+    border: none;
+    padding: 14px 40px;
+    font-size: 1.1em;
+    font-weight: 900;
+    border-radius: 50px;
+    cursor: pointer;
+    margin-top: 10px;
+    box-shadow: 0 4px 15px rgba(255,0,0,0.4);
+    letter-spacing: 1px;
+  }
+  #retryBtn:active { transform: scale(0.95); }
+
+  #liveScore {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-size: 2em;
+    font-weight: 900;
+    text-shadow: 2px 2px 0 #000, 0 0 10px rgba(0,0,0,0.8);
+    display: none;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="gameWrapper">
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  <div id="liveScore">0</div>
+
+  <div id="overlay">
+    <div id="startScreen">
+      <canvas id="previewCanvas" width="100" height="100" style="border-radius:50%;border:3px solid #FFD700;box-shadow:0 0 20px #FFD70088;margin-bottom:14px;display:block;margin-left:auto;margin-right:auto;"></canvas>
+      <h1>🐃 FLAPPY DUPE</h1>
+      <p>Dodge the Durga Wines bottles!</p>
+      <div style="font-size:0.8em;color:#FFD700;margin-bottom:14px;letter-spacing:1px;">featuring the legendary buffalo face 😂</div>
+      <button id="startBtn" onclick="startGame()">▶ START GAME</button>
+      <div id="tapHint">TAP or SPACE to fly</div>
+    </div>
+
+    <div id="gameOverScreen">
+      <h1>💥 STUNT FAILED!</h1>
+      <div id="buffaloSound">🐃 AAAAMBAAAA!!! 🐃</div>
+      <div id="scoreBoard">
+        <div>SCORE &nbsp; <span id="finalScore">0</span></div>
+        <div>BEST &nbsp;&nbsp; <span id="bestScore">0</span></div>
+        <div>🍗 EATEN &nbsp; <span id="drumsticksEaten">0</span></div>
+      </div>
+      <button id="retryBtn" onclick="startGame()">🔄 TRY AGAIN</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = 400, H = 600;
+
+// Load face image
+const faceImg = new Image();
+faceImg.src = '/mnt/user-data/uploads/1000161758.png';
+
+// Game state
+let state = 'start'; // start, playing, dead
+let score = 0, bestScore = 0;
+let bird, pipes, drumsticks, frameCount, bgOffset;
+let fatLevel = 0; // how many drumsticks eaten
+const MAX_FAT = 8;
+const BASE_RADIUS = 30;
+let eatAnim = 0; // countdown for eat animation
+let eatPopups = []; // floating "+FAT" text popups
+
+// Background elements
+let clouds = [];
+function initClouds() {
+  clouds = [];
+  for (let i = 0; i < 5; i++) {
+    clouds.push({ x: Math.random() * W, y: Math.random() * 200 + 30, w: 60 + Math.random() * 60, speed: 0.3 + Math.random() * 0.3 });
+  }
+}
+
+function initGame() {
+  fatLevel = 0;
+  eatAnim = 0;
+  eatPopups = [];
+  bird = { x: 80, y: H / 2, vy: 0, r: BASE_RADIUS, angle: 0 };
+  pipes = [];
+  drumsticks = [];
+  frameCount = 0;
+  bgOffset = 0;
+  score = 0;
+  initClouds();
+  document.getElementById('liveScore').textContent = '0';
+  document.getElementById('liveScore').style.display = 'block';
+}
+
+const GRAVITY = 0.45;
+const JUMP = -8;
+const PIPE_W = 60;
+const GAP = 160;
+const PIPE_SPEED = 2.5;
+
+function jump() {
+  if (state === 'playing') {
+    bird.vy = JUMP;
+  }
+}
+
+function startGame() {
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('gameOverScreen').style.display = 'none';
+  document.getElementById('overlay').style.display = 'none';
+  state = 'playing';
+  initGame();
+  loop();
+}
+
+function gameOver() {
+  state = 'dead';
+  if (score > bestScore) bestScore = score;
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('bestScore').textContent = bestScore;
+  document.getElementById('drumsticksEaten').textContent = fatLevel;
+  document.getElementById('liveScore').style.display = 'none';
+  document.getElementById('overlay').style.display = 'flex';
+  document.getElementById('gameOverScreen').style.display = 'flex';
+
+  // Buffalo sound via Web Audio
+  playBuffaloMoo();
+}
+
+function playBuffaloMoo() {
+  try {
+    const ac = new AudioContext();
+    // Simulate a deep "AAAMBA" moo sound
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(80, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(50, ac.currentTime + 0.8);
+    osc.frequency.exponentialRampToValueAtTime(70, ac.currentTime + 1.2);
+    gain.gain.setValueAtTime(0.3, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 1.5);
+    osc.start(ac.currentTime);
+    osc.stop(ac.currentTime + 1.5);
+  } catch(e) {}
+}
+
+function drawBackground() {
+  // Sky gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#87CEEB');
+  grad.addColorStop(0.6, '#B0E0E6');
+  grad.addColorStop(1, '#90EE90');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Ground
+  ctx.fillStyle = '#8B6914';
+  ctx.fillRect(0, H - 60, W, 60);
+  ctx.fillStyle = '#5D8A3C';
+  ctx.fillRect(0, H - 60, W, 18);
+
+  // Clouds
+  clouds.forEach(c => {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, c.w / 2, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(c.x - c.w * 0.2, c.y + 5, c.w * 0.3, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(c.x + c.w * 0.2, c.y + 5, c.w * 0.3, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawBottle(x, y, h, flip) {
+  ctx.save();
+  ctx.translate(x + PIPE_W / 2, flip ? y + h : y);
+  if (flip) ctx.scale(1, -1);
+
+  const bh = h;
+  const bw = PIPE_W;
+
+  // Bottle body
+  const bgrad = ctx.createLinearGradient(-bw/2, 0, bw/2, 0);
+  bgrad.addColorStop(0, '#1a6b1a');
+  bgrad.addColorStop(0.3, '#2ea82e');
+  bgrad.addColorStop(0.7, '#1a6b1a');
+  bgrad.addColorStop(1, '#0d3d0d');
+  ctx.fillStyle = bgrad;
+
+  // Body shape
+  ctx.beginPath();
+  ctx.moveTo(-bw/2, bh);
+  ctx.lineTo(-bw/2, bh * 0.25);
+  ctx.quadraticCurveTo(-bw/2, bh * 0.1, -bw*0.25, bh * 0.05);
+  ctx.lineTo(-bw*0.18, 0);
+  ctx.lineTo(bw*0.18, 0);
+  ctx.lineTo(bw*0.25, bh * 0.05);
+  ctx.quadraticCurveTo(bw/2, bh * 0.1, bw/2, bh * 0.25);
+  ctx.lineTo(bw/2, bh);
+  ctx.closePath();
+  ctx.fill();
+
+  // Bottle shine
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath();
+  ctx.moveTo(-bw*0.3, bh * 0.15);
+  ctx.lineTo(-bw*0.15, bh * 0.15);
+  ctx.lineTo(-bw*0.15, bh * 0.85);
+  ctx.lineTo(-bw*0.3, bh * 0.85);
+  ctx.closePath();
+  ctx.fill();
+
+  // Label background
+  const labelY = bh * 0.3;
+  const labelH = bh * 0.4;
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(-bw*0.42, labelY, bw*0.84, labelH);
+
+  // Label border
+  ctx.strokeStyle = '#B8860B';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(-bw*0.42, labelY, bw*0.84, labelH);
+
+  // Label text
+  ctx.fillStyle = '#000';
+  ctx.font = `bold ${Math.max(7, bw*0.18)}px Arial Black`;
+  ctx.textAlign = 'center';
+  ctx.fillText('DURGA', 0, labelY + labelH * 0.32);
+  ctx.font = `bold ${Math.max(5, bw*0.13)}px Arial`;
+  ctx.fillText('WINES', 0, labelY + labelH * 0.57);
+  ctx.font = `${Math.max(4, bw*0.1)}px Arial`;
+  ctx.fillText('Premium', 0, labelY + labelH * 0.78);
+
+  // Cap
+  ctx.fillStyle = '#silver';
+  ctx.fillStyle = '#CC0000';
+  ctx.fillRect(-bw*0.18, -8, bw*0.36, 10);
+  ctx.fillStyle = '#AA0000';
+  ctx.fillRect(-bw*0.15, -12, bw*0.30, 6);
+
+  ctx.restore();
+}
+
+function drawBird() {
+  ctx.save();
+  ctx.translate(bird.x, bird.y);
+  const tilt = Math.max(-0.5, Math.min(0.5, bird.vy * 0.06));
+  ctx.rotate(tilt);
+
+  const r = bird.r;
+  // Fat squish: wider and shorter as fatLevel increases
+  const fatX = 1 + fatLevel * 0.04;
+  const fatY = 1 - fatLevel * 0.015;
+
+  // Shadow (wider when fatter)
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(3 * fatX, r * fatY + 4, r * 0.8 * fatX, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Scale for fat effect
+  ctx.scale(fatX, fatY);
+
+  // Circle background
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.strokeStyle = fatLevel >= MAX_FAT ? '#FF4444' : '#FFD700';
+  ctx.lineWidth = 3 + fatLevel * 0.3;
+  ctx.stroke();
+
+  // Face image clipped to circle
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, r - 2, 0, Math.PI * 2);
+  ctx.clip();
+  if (faceImg.complete && faceImg.naturalWidth > 0) {
+    ctx.drawImage(faceImg, -r, -r, r * 2, r * 2);
+  } else {
+    ctx.fillStyle = '#FDBCB4';
+    ctx.fill();
+    ctx.font = `${r * 1.2}px serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('😎', 0, r * 0.4);
+  }
+  ctx.restore();
+
+  // Buffalo face overlay
+  drawBuffaloFace(ctx, 0, 0, r);
+
+  ctx.restore();
+}
+
+// Render preview canvas on start screen
+function renderPreview() {
+  const pc = document.getElementById('previewCanvas');
+  if (!pc) return;
+  const pctx = pc.getContext('2d');
+  const pr = 46;
+  pctx.clearRect(0, 0, 100, 100);
+
+  // Circle clip
+  pctx.save();
+  pctx.beginPath();
+  pctx.arc(50, 50, pr, 0, Math.PI * 2);
+  pctx.fillStyle = '#fff';
+  pctx.fill();
+  if (faceImg.complete && faceImg.naturalWidth > 0) {
+    pctx.clip();
+    pctx.drawImage(faceImg, 4, 4, 92, 92);
+    pctx.restore();
+  } else {
+    pctx.restore();
+  }
+  drawBuffaloFace(pctx, 50, 50, pr);
+}
+
+faceImg.onload = renderPreview;
+// Also try rendering after a short delay in case image loads fast
+setTimeout(renderPreview, 300);
+
+function drawBuffaloFace(ctx, x, y, r) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Buffalo fur color base — dark brownish
+  const furColor = '#3B1F0A';
+  const lightFur = '#6B3A1F';
+
+  // HEAD — big rounded square
+  ctx.beginPath();
+  ctx.ellipse(0, 2, r * 0.72, r * 0.68, 0, 0, Math.PI * 2);
+  ctx.fillStyle = furColor;
+  ctx.fill();
+
+  // HORNS (curved, dark)
+  ctx.strokeStyle = '#1a0d00';
+  ctx.lineWidth = r * 0.18;
+  ctx.lineCap = 'round';
+
+  // Left horn
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.55, -r * 0.38);
+  ctx.quadraticCurveTo(-r * 0.85, -r * 0.75, -r * 0.6, -r * 0.88);
+  ctx.stroke();
+
+  // Right horn
+  ctx.beginPath();
+  ctx.moveTo(r * 0.55, -r * 0.38);
+  ctx.quadraticCurveTo(r * 0.85, -r * 0.75, r * 0.6, -r * 0.88);
+  ctx.stroke();
+
+  // Horn tips (lighter)
+  ctx.strokeStyle = '#4a2a00';
+  ctx.lineWidth = r * 0.08;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.78, -r * 0.72);
+  ctx.lineTo(-r * 0.6, -r * 0.88);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(r * 0.78, -r * 0.72);
+  ctx.lineTo(r * 0.6, -r * 0.88);
+  ctx.stroke();
+
+  // FOREHEAD shaggy fur patch
+  ctx.fillStyle = '#2a1205';
+  ctx.beginPath();
+  ctx.ellipse(0, -r * 0.3, r * 0.42, r * 0.22, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // EAR left
+  ctx.fillStyle = furColor;
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.68, -r * 0.15, r * 0.18, r * 0.12, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#c97070';
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.68, -r * 0.15, r * 0.1, r * 0.06, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // EAR right
+  ctx.fillStyle = furColor;
+  ctx.beginPath();
+  ctx.ellipse(r * 0.68, -r * 0.15, r * 0.18, r * 0.12, 0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#c97070';
+  ctx.beginPath();
+  ctx.ellipse(r * 0.68, -r * 0.15, r * 0.1, r * 0.06, 0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // EYES
+  // Left eye white
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.28, -r * 0.05, r * 0.15, r * 0.13, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Right eye white
+  ctx.beginPath();
+  ctx.ellipse(r * 0.28, -r * 0.05, r * 0.15, r * 0.13, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eye pupils
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.28, -r * 0.05, r * 0.08, r * 0.09, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(r * 0.28, -r * 0.05, r * 0.08, r * 0.09, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eye shine
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.arc(-r * 0.23, -r * 0.1, r * 0.03, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(r * 0.33, -r * 0.1, r * 0.03, 0, Math.PI * 2);
+  ctx.fill();
+
+  // NOSE (wide buffalo snout)
+  ctx.fillStyle = lightFur;
+  ctx.beginPath();
+  ctx.ellipse(0, r * 0.28, r * 0.38, r * 0.26, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Nostrils
+  ctx.fillStyle = '#1a0900';
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.15, r * 0.32, r * 0.08, r * 0.06, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(r * 0.15, r * 0.32, r * 0.08, r * 0.06, 0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // MOUTH line
+  ctx.strokeStyle = '#1a0900';
+  ctx.lineWidth = r * 0.04;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.15, r * 0.46);
+  ctx.quadraticCurveTo(0, r * 0.54, r * 0.15, r * 0.46);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawDrumstick(x, y, size, wobble) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(wobble);
+
+  // Bone handle
+  ctx.strokeStyle = '#F5DEB3';
+  ctx.lineWidth = size * 0.22;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-size * 0.1, size * 0.15);
+  ctx.lineTo(size * 0.35, size * 0.6);
+  ctx.stroke();
+
+  // Bone ends
+  ctx.fillStyle = '#F5DEB3';
+  ctx.beginPath();
+  ctx.arc(size * 0.38, size * 0.63, size * 0.13, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(size * 0.28, size * 0.72, size * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Meat part - golden brown
+  const meatGrad = ctx.createRadialGradient(-size*0.08, -size*0.08, 0, 0, 0, size * 0.52);
+  meatGrad.addColorStop(0, '#E8A020');
+  meatGrad.addColorStop(0.6, '#C0650A');
+  meatGrad.addColorStop(1, '#8B3A00');
+  ctx.fillStyle = meatGrad;
+  ctx.beginPath();
+  ctx.ellipse(-size * 0.05, -size * 0.05, size * 0.5, size * 0.42, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Crispy texture lines
+  ctx.strokeStyle = 'rgba(100,40,0,0.4)';
+  ctx.lineWidth = size * 0.05;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.3 + i * size * 0.18, -size * 0.25);
+    ctx.quadraticCurveTo(-size * 0.1 + i * size * 0.18, 0, -size * 0.25 + i * size * 0.18, size * 0.18);
+    ctx.stroke();
+  }
+
+  // Shine
+  ctx.fillStyle = 'rgba(255,220,100,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(-size * 0.18, -size * 0.2, size * 0.18, size * 0.1, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Glow ring around the drumstick
+  ctx.strokeStyle = 'rgba(255, 200, 0, 0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, size * 0.65, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function spawnDrumstick() {
+  const margin = 80;
+  const y = margin + Math.random() * (H - 60 - margin * 2);
+  drumsticks.push({ x: W + 20, y, wobble: 0, wobbleDir: 1, size: 22 });
+}
+
+function updateDrumsticks() {
+  // Spawn occasionally — every ~300 frames with randomness
+  if (frameCount % 300 === 150 && Math.random() < 0.7) spawnDrumstick();
+
+  eatPopups = eatPopups.filter(p => p.life > 0);
+  eatPopups.forEach(p => { p.y -= 1.2; p.life--; p.alpha = p.life / 50; });
+
+  drumsticks.forEach(d => {
+    d.x -= PIPE_SPEED;
+    d.wobble += 0.05 * d.wobbleDir;
+    if (Math.abs(d.wobble) > 0.3) d.wobbleDir *= -1;
+
+    // Collision with bird
+    const dx = d.x - bird.x;
+    const dy = d.y - bird.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < bird.r + d.size * 0.6 && !d.eaten) {
+      d.eaten = true;
+      if (fatLevel < MAX_FAT) {
+        fatLevel++;
+        bird.r = BASE_RADIUS + fatLevel * 4;
+        eatAnim = 25;
+        playEatSound();
+        eatPopups.push({ x: bird.x + 10, y: bird.y - bird.r - 10, life: 50, alpha: 1 });
+      }
+    }
+  });
+  drumsticks = drumsticks.filter(d => d.x > -40 && !d.eaten);
+}
+
+function playEatSound() {
+  try {
+    const ac = new AudioContext();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(900, ac.currentTime + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(500, ac.currentTime + 0.18);
+    gain.gain.setValueAtTime(0.25, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.2);
+    osc.start(ac.currentTime);
+    osc.stop(ac.currentTime + 0.2);
+  } catch(e) {}
+}
+
+function addPipe() {
+  const minH = 60;
+  const maxH = H - 60 - GAP - minH;
+  const topH = Math.random() * (maxH - minH) + minH;
+  pipes.push({ x: W + 10, topH, passed: false });
+}
+
+function updatePipes() {
+  if (frameCount % 90 === 0) addPipe();
+  pipes.forEach(p => {
+    p.x -= PIPE_SPEED;
+    if (!p.passed && p.x + PIPE_W < bird.x - bird.r) {
+      p.passed = true;
+      score++;
+      document.getElementById('liveScore').textContent = score;
+    }
+  });
+  pipes = pipes.filter(p => p.x + PIPE_W > -20);
+}
+
+function checkCollision() {
+  // Ground & ceiling
+  if (bird.y + bird.r > H - 60 || bird.y - bird.r < 0) return true;
+  // Pipes
+  for (const p of pipes) {
+    const bx = bird.x, by = bird.y, br = bird.r - 4;
+    const px1 = p.x, px2 = p.x + PIPE_W;
+    // Check if horizontally overlapping
+    if (bx + br > px1 && bx - br < px2) {
+      // Top bottle
+      if (by - br < p.topH) return true;
+      // Bottom bottle
+      if (by + br > p.topH + GAP) return true;
+    }
+  }
+  return false;
+}
+
+let animId;
+function loop() {
+  if (state !== 'playing') return;
+
+  // Update
+  bird.vy += GRAVITY;
+  bird.y += bird.vy;
+  bgOffset = (bgOffset + 0.5) % W;
+  frameCount++;
+
+  clouds.forEach(c => {
+    c.x -= c.speed;
+    if (c.x + c.w < 0) c.x = W + c.w;
+  });
+
+  updatePipes();
+  updateDrumsticks();
+  if (eatAnim > 0) eatAnim--;
+
+  if (checkCollision()) {
+    gameOver();
+    // Draw one last frame
+    draw();
+    return;
+  }
+
+  draw();
+  animId = requestAnimationFrame(loop);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawBackground();
+  pipes.forEach(p => {
+    drawBottle(p.x, 0, p.topH, true);
+    drawBottle(p.x, p.topH + GAP, H - 60 - p.topH - GAP, false);
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,4]);
+    ctx.beginPath();
+    ctx.moveTo(p.x + PIPE_W/2, p.topH);
+    ctx.lineTo(p.x + PIPE_W/2, p.topH + GAP);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Draw drumsticks
+  drumsticks.forEach(d => drawDrumstick(d.x, d.y, d.size, d.wobble));
+
+  // Eat animation ring flash
+  if (eatAnim > 0) {
+    const alpha = eatAnim / 25;
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.6;
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(bird.x, bird.y, bird.r + 8 + (25 - eatAnim) * 0.8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawBird();
+
+  // Eat popups "+FAT 🍗"
+  eatPopups.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 16px Arial Black';
+    ctx.textAlign = 'center';
+    ctx.fillText('🍗 +FAT!', p.x, p.y);
+    ctx.restore();
+  });
+
+  // Fat meter (top right)
+  if (fatLevel > 0) {
+    const meterX = W - 16;
+    const meterY = 16;
+    const meterH = 100;
+    const fillH = (fatLevel / MAX_FAT) * meterH;
+
+    // Background
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.roundRect(meterX - 14, meterY, 14, meterH, 6);
+    ctx.fill();
+
+    // Fill
+    const meterGrad = ctx.createLinearGradient(0, meterY + meterH, 0, meterY);
+    meterGrad.addColorStop(0, '#ff9900');
+    meterGrad.addColorStop(1, '#ff3300');
+    ctx.fillStyle = meterGrad;
+    ctx.roundRect(meterX - 13, meterY + meterH - fillH + 1, 12, fillH - 1, 5);
+    ctx.fill();
+
+    // Label
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 8px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('FAT', meterX - 7, meterY + meterH + 12);
+
+    // Drumstick icon above meter
+    ctx.font = '14px serif';
+    ctx.fillText('🍗', meterX - 7, meterY - 4);
+  }
+}
+
+// Initial canvas draw
+drawBackground();
+ctx.fillStyle = 'rgba(0,0,0,0.1)';
+ctx.fillRect(0, 0, W, H);
+
+// Controls
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); jump(); } });
+document.addEventListener('touchstart', e => { e.preventDefault(); jump(); }, { passive: false });
+canvas.addEventListener('mousedown', () => jump());
+</script>
+</body>
+</html>
